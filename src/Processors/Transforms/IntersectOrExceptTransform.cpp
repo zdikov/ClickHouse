@@ -47,6 +47,13 @@ IntersectOrExceptTransform::Status IntersectOrExceptTransform::prepare()
         output.push(std::move(current_output_chunk));
     }
 
+    if (push_empty_chunk)
+    {
+        LOG_DEBUG(&Poco::Logger::get("Intersect"), "Push empty");
+        output.push(std::move(empty_chunk));
+        push_empty_chunk = false;
+    }
+
     if (finished_second_input)
     {
         if (inputs.front().isFinished())
@@ -99,6 +106,15 @@ void IntersectOrExceptTransform::work()
     if (!finished_second_input)
     {
         LOG_DEBUG(&Poco::Logger::get("Intersect"), "Accumulate");
+
+        auto columns = current_input_chunk.getColumns();
+        IColumn::Filter filter;
+        filter.resize_fill(current_input_chunk.getNumRows(), 0);
+        for (auto & column : columns)
+            column = column->filter(filter, -1);
+        empty_chunk.setColumns(columns, 0);
+        push_empty_chunk = true;
+
         accumulate(std::move(current_input_chunk));
     }
     else

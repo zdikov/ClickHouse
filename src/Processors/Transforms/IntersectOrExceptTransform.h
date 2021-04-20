@@ -18,6 +18,10 @@ public:
     String getName() const override { return is_except ? "Except" : "Intersect"; }
 
 private:
+
+    bool push_empty_chunk = false;
+    Chunk empty_chunk;
+
     bool is_except;
     ColumnNumbers key_columns_pos;
     SetVariants data;
