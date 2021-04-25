@@ -27,29 +27,30 @@ IntersectOrExceptTransform::Status IntersectOrExceptTransform::prepare()
     {
         for (auto & in : inputs)
             in.close();
-        LOG_DEBUG(&Poco::Logger::get("Intersect"), "Output is finished");
         return Status::Finished;
     }
 
-    InputPort & input = finished_second_input ? inputs.front() : inputs.back();
-
     if (!output.canPush())
     {
-        LOG_DEBUG(&Poco::Logger::get("Intersect"), "Can't push");
-        input.setNotNeeded();
+        if (inputs.front().isFinished())
+        {
+            inputs.back().setNotNeeded();
+        }
+        else
+        {
+            inputs.front().setNotNeeded();
+        }
         return Status::PortFull;
     }
 
     /// Output if has data.
     if (current_output_chunk)
     {
-        LOG_DEBUG(&Poco::Logger::get("Intersect"), "Push");
         output.push(std::move(current_output_chunk));
     }
 
     if (push_empty_chunk)
     {
-        LOG_DEBUG(&Poco::Logger::get("Intersect"), "Push empty");
         output.push(std::move(empty_chunk));
         push_empty_chunk = false;
     }
@@ -58,16 +59,16 @@ IntersectOrExceptTransform::Status IntersectOrExceptTransform::prepare()
     {
         if (inputs.front().isFinished())
         {
-            LOG_DEBUG(&Poco::Logger::get("Intersect"), "Inputs are finished");
             output.finish();
             return Status::Finished;
         }
     }
     else if (inputs.back().isFinished())
     {
-        LOG_DEBUG(&Poco::Logger::get("Intersect"), "Second input is finished");
         finished_second_input = true;
     }
+
+    InputPort & input = finished_second_input ? inputs.front() : inputs.back();
 
     /// Check can input.
     if (!has_input)
@@ -75,23 +76,7 @@ IntersectOrExceptTransform::Status IntersectOrExceptTransform::prepare()
         input.setNeeded();
         if (!input.hasData())
         {
-            if (finished_second_input)
-            {
-                LOG_DEBUG(&Poco::Logger::get("Intersect"), "Need data from first input");
-            }
-            else
-            {
-                LOG_DEBUG(&Poco::Logger::get("Intersect"), "Need data from second input");
-            }
             return Status::NeedData;
-        }
-
-        if (finished_second_input)
-        {
-            LOG_DEBUG(&Poco::Logger::get("Intersect"), "Pull from first input");
-        } else
-        {
-            LOG_DEBUG(&Poco::Logger::get("Intersect"), "Pull from second input");
         }
 
         current_input_chunk = input.pull();
@@ -105,21 +90,10 @@ void IntersectOrExceptTransform::work()
 {
     if (!finished_second_input)
     {
-        LOG_DEBUG(&Poco::Logger::get("Intersect"), "Accumulate");
-
-        auto columns = current_input_chunk.getColumns();
-        IColumn::Filter filter;
-        filter.resize_fill(current_input_chunk.getNumRows(), 0);
-        for (auto & column : columns)
-            column = column->filter(filter, -1);
-        empty_chunk.setColumns(columns, 0);
-        push_empty_chunk = true;
-
         accumulate(std::move(current_input_chunk));
     }
     else
     {
-        LOG_DEBUG(&Poco::Logger::get("Intersect"), "Filter");
         filter(current_input_chunk);
         current_output_chunk = std::move(current_input_chunk);
     }
