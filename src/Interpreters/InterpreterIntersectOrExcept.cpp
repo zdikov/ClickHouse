@@ -7,6 +7,12 @@
 
 namespace DB
 {
+
+namespace ErrorCodes
+{
+    extern const int INTERSECT_OR_EXCEPT_RESULT_STRUCTURES_MISMATCH;
+}
+
 InterpreterIntersectOrExcept::InterpreterIntersectOrExcept(const ASTPtr & query_ptr_, const Context & context_)
     : query_ptr(query_ptr_), context(std::make_shared<Context>(context_))
 {
@@ -36,9 +42,11 @@ Block InterpreterIntersectOrExcept::getCommonHeader(const Blocks & headers)
     {
         if (headers[query_num].columns() != num_columns)
             throw Exception(
-                "Different number of columns in INTERSECT elements:\n" + common_header.dumpNames() + "\nand\n"
+                "Different number of columns in "
+                    + toString(query_ptr->as<ASTIntersectOrExcept>()->is_except ? "EXCEPT" : "INTERSECT")
+                    + " elements:\n" + common_header.dumpNames() + "\nand\n"
                     + headers[query_num].dumpNames() + "\n",
-                ErrorCodes::LOGICAL_ERROR);
+                    ErrorCodes::INTERSECT_OR_EXCEPT_RESULT_STRUCTURES_MISMATCH);
     }
 
     std::vector<const ColumnWithTypeAndName *> columns(num_selects);

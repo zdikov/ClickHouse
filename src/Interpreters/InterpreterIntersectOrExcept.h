@@ -26,7 +26,7 @@ private:
     std::shared_ptr<Context> context;
     Block result_header;
     std::vector<std::unique_ptr<IInterpreterUnionOrSelectQuery>> nested_interpreters;
-    static Block getCommonHeader(const Blocks & headers);
+    Block getCommonHeader(const Blocks & headers);
 
     std::unique_ptr<InterpreterSelectWithUnionQuery>
     buildCurrentChildInterpreter(const ASTPtr & ast_ptr_);
