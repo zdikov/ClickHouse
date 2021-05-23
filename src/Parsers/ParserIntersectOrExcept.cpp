@@ -3,6 +3,7 @@
 #include <Parsers/CommonParsers.h>
 #include <Parsers/ExpressionElementParsers.h>
 #include <Parsers/ParserIntersectOrExcept.h>
+#include <Parsers/ParserSelectQuery.h>
 
 namespace DB
 {
@@ -17,14 +18,16 @@ bool ParserIntersectOrExcept::parseImpl(Pos & pos, ASTPtr & node, Expected & exp
     auto ast = std::make_shared<ASTIntersectOrExcept>();
     ast->is_except = false;
 
-    if (!ParserSubquery().parse(pos, left_node, expected))
+    if (!ParserSelectQuery().parse(pos, left_node, expected))
     {
-        return false;
+        if (!ParserSubquery().parse(pos, left_node, expected))
+        {
+            return false;
+        }
     }
-    Pos before_keyword = pos;
+
     if (!intersect_keyword.ignore(pos))
     {
-        pos = before_keyword;
         if (!except_keyword.ignore(pos))
         {
             pos = begin;
@@ -35,11 +38,16 @@ bool ParserIntersectOrExcept::parseImpl(Pos & pos, ASTPtr & node, Expected & exp
             ast->is_except = true;
         }
     }
-    if (!ParserSubquery().parse(pos, right_node, expected))
+
+    if (!ParserSelectQuery().parse(pos, right_node, expected))
     {
-        pos = begin;
-        return false;
+        if (!ParserSubquery().parse(pos, right_node, expected))
+        {
+            pos = begin;
+            return false;
+        }
     }
+
     if (const auto * ast_subquery = left_node->as<ASTSubquery>())
         left_node = ast_subquery->children.at(0);
     if (const auto * ast_subquery = right_node->as<ASTSubquery>())
