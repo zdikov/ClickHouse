@@ -12,6 +12,7 @@
 #include <Core/Defines.h>
 #include <common/types.h>
 #include <Common/Exception.h>
+#include <Common/MemorySanitizer.h>
 
 #include <IO/WriteBuffer.h>
 #include <IO/WriteHelpers.h>
@@ -69,16 +70,11 @@ namespace ZeroTraits
 {
 
 template <typename T>
-inline bool check(const T x) { return x == 0; }
+bool check(const T x) { return x == T{}; }
 
 template <typename T>
-inline void set(T & x) { x = 0; }
+void set(T & x) { x = {}; }
 
-template <>
-inline bool check(const char * x) { return x == nullptr; }
-
-template <>
-inline void set(const char *& x){ x = nullptr; }
 }
 
 
@@ -309,7 +305,7 @@ template <bool need_zero_value_storage, typename Cell>
 struct ZeroValueStorage;
 
 template <typename Cell>
-struct ZeroValueStorage<true, Cell>
+struct ZeroValueStorage<true, Cell> //-V730
 {
 private:
     bool has_zero = false;
@@ -589,8 +585,19 @@ protected:
     void destroyElements()
     {
         if (!std::is_trivially_destructible_v<Cell>)
+        {
             for (iterator it = begin(), it_end = end(); it != it_end; ++it)
+            {
                 it.ptr->~Cell();
+                /// In case of poison_in_dtor=1 it will be poisoned,
+                /// but it maybe used later, during iteration.
+                ///
+                /// NOTE, that technically this is UB [1], but OK for now.
+                ///
+                ///   [1]: https://github.com/google/sanitizers/issues/854#issuecomment-329661378
+                __msan_unpoison(it.ptr, sizeof(*it.ptr));
+            }
+        }
     }
 
 
