@@ -14,7 +14,7 @@ class QueryPlan;
 class InterpreterIntersectOrExcept : public IInterpreter
 {
 public:
-    InterpreterIntersectOrExcept(const ASTPtr & query_ptr_, const Context & context_);
+    InterpreterIntersectOrExcept(const ASTPtr & query_ptr_, ContextPtr context_);
 
     /// Builds QueryPlan for current query.
     virtual void buildQueryPlan(QueryPlan & query_plan);
@@ -23,12 +23,12 @@ public:
 
 private:
     ASTPtr query_ptr;
-    std::shared_ptr<Context> context;
+    ContextPtr context;
     Block result_header;
     std::vector<std::unique_ptr<IInterpreterUnionOrSelectQuery>> nested_interpreters;
     Block getCommonHeader(const Blocks & headers);
 
-    std::unique_ptr<InterpreterSelectWithUnionQuery>
+    std::unique_ptr<IInterpreterUnionOrSelectQuery>
     buildCurrentChildInterpreter(const ASTPtr & ast_ptr_);
 };
 

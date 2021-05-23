@@ -15,22 +15,18 @@ IntersectOrExceptStep::IntersectOrExceptStep(bool is_except_, DataStreams input_
     output_stream = DataStream{.header = header};
 }
 
-QueryPipelinePtr IntersectOrExceptStep::updatePipeline(QueryPipelines pipelines)
+QueryPipelinePtr IntersectOrExceptStep::updatePipeline(QueryPipelines pipelines, const BuildQueryPipelineSettings & )
 {
-
-    pipelines[0]->addTransform(std::make_shared<ResizeProcessor>(header, pipelines[0]->getNumStreams(), 1));
-    pipelines[1]->addTransform(std::make_shared<ResizeProcessor>(header, pipelines[1]->getNumStreams(), 1));
-
     auto pipeline = std::make_unique<QueryPipeline>();
     QueryPipelineProcessorsCollector collector(*pipeline, this);
 
     pipelines[0]->addTransform(std::make_shared<ResizeProcessor>(header, pipelines[0]->getNumStreams(), 1));
     pipelines[1]->addTransform(std::make_shared<ResizeProcessor>(header, pipelines[1]->getNumStreams(), 1));
 
-    *pipeline = QueryPipeline::unitePipelines(std::move(pipelines), output_stream->header, max_threads);
+    *pipeline = QueryPipeline::unitePipelines(std::move(pipelines), max_threads);
     pipeline->addTransform(std::make_shared<IntersectOrExceptTransform>(is_except, header));
 
-//    processors = collector.detachProcessors();
+    processors = collector.detachProcessors();
     return pipeline;
 }
 

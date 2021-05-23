@@ -12,7 +12,7 @@ public:
 
     String getName() const override { return is_except ? "Except" : "Intersect"; }
 
-    QueryPipelinePtr updatePipeline(QueryPipelines pipelines) override;
+    QueryPipelinePtr updatePipeline(QueryPipelines pipelines, const BuildQueryPipelineSettings & settings) override;
 
     void describePipeline(FormatSettings & settings) const override;
 private:
